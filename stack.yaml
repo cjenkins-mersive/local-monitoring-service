@@ -15,7 +15,7 @@
 # resolver:
 #  name: custom-snapshot
 #  location: "./custom-snapshot.yaml"
-resolver: ghc-7.10
+resolver: ghc-8.0
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -49,7 +49,7 @@ flags: {}
 extra-package-dbs: []
 
 # Control whether we use the GHC we find on the path
-system-ghc: true
+# system-ghc: true
  
 # Require a specific version of stack, using version ranges
 # require-stack-version: -any # Default
@@ -66,10 +66,7 @@ system-ghc: true
 # Allow a newer minor version of GHC than the snapshot specifies
 # compiler-check: newer-minor
 
-# setup-info:
-#    gch:
-#      android-cross:
-#	7.6.3:
-#	  url: "/opt/ghc/bin"
+setup-info:
+    gch: android-cross: 8.0.2: url: "/home/androidbuilder/.ghc/android-9/arm-linux-androideabi-4.9/arm-linux-androideabi/bin"
 
-# ghc-variant: android-cross
+ghc-variant: android-cross
