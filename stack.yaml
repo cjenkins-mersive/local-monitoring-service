@@ -70,8 +70,8 @@ arch: arm
 
 setup-info:
   ghc:
-    linux-armv7-custom-android-cross:
+    arm-unknown-linux-android:
       8.0.1:
         url: "/home/androidbuilder/ghc-build/build-android-9-arm-linux-androideabi-4.9/ghc/ghc-8.0.1-arm-unknown-linux-android.tar.xz"
 
-ghc-variant: linux-armv7-custom-android-cross
+ghc-variant: arm-unknown-linux-android
