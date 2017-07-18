@@ -15,7 +15,7 @@
 # resolver:
 #  name: custom-snapshot
 #  location: "./custom-snapshot.yaml"
-resolver: ghc-7.10
+resolver: ghc-8.0
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -58,8 +58,8 @@ extra-package-dbs: []
 # Override the architecture used by stack, especially useful on Windows
 # arch: i386
 # arch: x86_64
-# arch: arm
 
+arch: arm
 
 # Extra directories used by stack for building
 # extra-include-dirs: [/path/to/dir]
@@ -68,7 +68,10 @@ extra-package-dbs: []
 # Allow a newer minor version of GHC than the snapshot specifies
 # compiler-check: newer-minor
 
-# setup-info:
-# gch: android-cross: 8.0.2: url: "/home/androidbuilder/.ghc/android-9/arm-linux-androideabi-4.9/arm-linux-androideabi/bin"
+setup-info:
+  gch:
+    android-cross:
+      8.0.1:
+        url: "/home/androidbuilder/ghc-build/build-android-9-arm-linux-androideabi-4.9/ghc/ghc-8.0.1-arm-unknown-linux-android.tar.xz"
 
-# ghc-variant: android-cross
+ghc-variant: android-cross
