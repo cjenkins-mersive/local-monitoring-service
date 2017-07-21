@@ -45,6 +45,7 @@ tailPredicate filepath (Removed _ _) = False
 
 tailing :: FilePath -> WS.Connection -> IO r
 tailing filepath conn = FSN.withManager $ \mgr -> do
+  print ("Started tailing file" ++ show filepath)
   let dir = fst $ splitFileName filepath
   let watchDirPredicate = tailPredicate filepath
   let initialState = B.empty
@@ -69,12 +70,14 @@ readWithoutClosing state results h = do
     if B.null c
     then return (state, results)
     else do
+      print (show c)
       let st = ensureEvenNumberOfLines $ convertToLines state c
       let validatedLines = validateLines (snd st)
       readWithoutClosing (fst st) (results ++ validatedLines) h
 
 sendToServer :: WS.Connection -> [B.ByteString] -> IO ()
-sendToServer conn validatedLines =
+sendToServer conn validatedLines = do
+  print ("Sending data to server " ++ show validatedLines)
   WS.sendTextDatas conn validatedLines
 
 watchAction :: WS.Connection -> FSN.Action
@@ -97,10 +100,7 @@ startWatching dirPath action =
 
 app :: FilePath -> WS.ClientApp ()
 app watchDir conn = do
-
-  _ <- forkIO $ forever $ do
-    msg <- WS.receiveData conn
-    liftIO $ T.putStrLn msg
+  print "Websocket connected!"
   
   startWatching watchDir (watchAction conn)
   
@@ -111,5 +111,5 @@ main =
   E.getArgs >>= \args ->
                   (doesDirectoryExist $ head args) >>= \dirExists ->
                                                          case dirExists of
-                                                           True -> withSocketsDo $ WS.runClient "127.0.0.1" 80 "/" (app $ head args)
+                                                           True -> withSocketsDo $ WS.runClient "127.0.0.1" 8080 "/" (app $ head args)
                                                            False -> putStrLn "Directory does not exist."
