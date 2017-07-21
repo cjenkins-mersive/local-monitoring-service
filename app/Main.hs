@@ -2,7 +2,7 @@
 
 module Main where
 
-import Control.Concurrent (threadDelay, forkIO)
+import Control.Concurrent (threadDelay)
 import Control.Concurrent.QSem
 import Control.Monad (forever, unless)
 import Control.Monad.Trans (liftIO)
@@ -56,11 +56,11 @@ tailing filepath conn = FSN.withManager $ \mgr -> do
 
 handleToStream :: B.ByteString -> [B.ByteString] -> QSem -> Handle -> WS.Connection -> IO r
 handleToStream state results sem h conn = do
-  waitQSem sem
+  --waitQSem sem
   let currentData = readWithoutClosing state results h
   currentData >>= \(newState, newResults) -> do
     sendToServer conn newResults
-    handleToStream newState newResults sem h conn
+    handleToStream newState [] sem h conn
   -- Can't use B.fromHandle here because annoyingly it closes handle on EOF
   -- instead of just returning, and this causes problems on new appends.
 
@@ -70,15 +70,15 @@ readWithoutClosing state results h = do
     if B.null c
     then return (state, results)
     else do
-      print (show c)
       let st = ensureEvenNumberOfLines $ convertToLines state c
       let validatedLines = validateLines (snd st)
       readWithoutClosing (fst st) (results ++ validatedLines) h
 
 sendToServer :: WS.Connection -> [B.ByteString] -> IO ()
 sendToServer conn validatedLines = do
-  print ("Sending data to server " ++ show validatedLines)
-  WS.sendTextDatas conn validatedLines
+  case (length validatedLines) > 0 of
+    True -> WS.sendTextDatas conn validatedLines
+    False -> threadDelay 50000
 
 watchAction :: WS.Connection -> FSN.Action
 watchAction conn (Added eventPath _) = tailing eventPath conn
@@ -102,14 +102,16 @@ app :: FilePath -> WS.ClientApp ()
 app watchDir conn = do
   print "Websocket connected!"
   
-  startWatching watchDir (watchAction conn)
+  --startWatching watchDir (watchAction conn)
+  tailing watchDir conn
   
   WS.sendClose conn("EOS" :: Text)
 
 main :: IO ()
 main =  
-  E.getArgs >>= \args ->
-                  (doesDirectoryExist $ head args) >>= \dirExists ->
-                                                         case dirExists of
-                                                           True -> withSocketsDo $ WS.runClient "127.0.0.1" 8080 "/" (app $ head args)
-                                                           False -> putStrLn "Directory does not exist."
+  --E.getArgs >>= \args ->
+  --                (doesDirectoryExist $ head args) >>= \dirExists ->
+  --                                                       case dirExists of
+  --                                                         True -> withSocketsDo $ WS.runClient "127.0.0.1" 8765 "/" (app $ head args)
+  --                                                         False -> putStrLn "Directory does not exist."
+  E.getArgs >>= \args -> withSocketsDo $ WS.runClient "127.0.0.1" 8765 "/" (app $ head args)

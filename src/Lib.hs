@@ -17,7 +17,8 @@ validateChecksum checksum lineOfData =
 
 convertToLines :: B.ByteString -> B.ByteString -> (B.ByteString, [B.ByteString])
 convertToLines state input = do
-  let entireInput = B.concat [state, input]
+  let cleanInput = C.filter (\c -> c /= '\r') input
+  let entireInput = B.concat [state, cleanInput]
   let lines = filter (\b -> B.length b > 0) $ C.split '\n' entireInput
   if C.last input == '\n'
   then (B.empty, lines)
