@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import Control.Concurrent (threadDelay, forkIO)
@@ -8,16 +10,11 @@ import Control.Monad.Trans (liftIO)
 import System.Environment as E
 import System.FSNotify as FSN
 import System.Directory (doesDirectoryExist)
-import System.IO (withFile, IOMode(ReadMode), stdout)
+import System.IO (withFile, IOMode(ReadMode), stdout, Handle)
 import System.FilePath
 
-import Streaming
-import qualified Streaming.Prelude as S
-
 import qualified Data.ByteString as B
-import qualified Data.ByteString.Streaming as BS
 import qualified Data.ByteString.Char8 (lines)
-import qualified Data.ByteString.Lazy.Char8 as LBS
 import Data.ByteString.Lazy.Internal (defaultChunkSize)
 import Data.Digest.CRC32 as CRC
 import Data.Text (Text)
@@ -46,37 +43,42 @@ tailPredicate filepath (Modified eventPath _) = filepath == eventPath
 tailPredicate filepath (Added _ _) = False
 tailPredicate filepath (Removed _ _) = False
 
-tailing :: FilePath -> (BS.ByteString IO () -> IO r) -> IO r
-tailing filepath continuation = FSN.withManager $ \mgr -> do
+tailing :: FilePath -> WS.Connection -> IO r
+tailing filepath conn = FSN.withManager $ \mgr -> do
   let dir = fst $ splitFileName filepath
   let watchDirPredicate = tailPredicate filepath
+  let initialState = B.empty
+  let initialResults = []
   sem <- newQSem 1
   FSN.watchDir mgr dir watchDirPredicate (\_ -> signalQSem sem)
-  withFile filepath ReadMode (\h -> continuation (handleToStream sem h))
-  where
-  handleToStream sem h = BS.concat . Streaming.repeats $ do
-    lift (waitQSem sem)
-    readWithoutClosing h
+  withFile filepath ReadMode (\h -> handleToStream initialState initialResults sem h conn)
+
+handleToStream :: B.ByteString -> [B.ByteString] -> QSem -> Handle -> WS.Connection -> IO r
+handleToStream state results sem h conn = do
+  waitQSem sem
+  let currentData = readWithoutClosing state results h
+  currentData >>= \(newState, newResults) -> do
+    sendToServer conn newResults
+    handleToStream newState newResults sem h conn
   -- Can't use B.fromHandle here because annoyingly it closes handle on EOF
   -- instead of just returning, and this causes problems on new appends.
-  readWithoutClosing h = do
-    c <- lift (B.hGetSome h defaultChunkSize)
+
+readWithoutClosing :: B.ByteString -> [B.ByteString] -> Handle -> IO ( (B.ByteString, [B.ByteString]) )
+readWithoutClosing state results h = do
+  B.hGetSome h defaultChunkSize >>= \c ->
     if B.null c
-      then return ()
-      else do BS.chunk c
-              readWithoutClosing h
+    then return (state, results)
+    else do
+      let st = ensureEvenNumberOfLines $ convertToLines state c
+      let validatedLines = validateLines (snd st)
+      readWithoutClosing (fst st) (results ++ validatedLines) h
 
-tailingContinuation :: WS.Connection -> BS.ByteString IO r -> IO r
-tailingContinuation conn = BS.stdout
-
-processDataPair :: LBS.ByteString -> LBS.ByteString -> IO ()
-processDataPair checksum lineOfData =
-  if validateChecksum checksum lineOfData
-  then print lineOfData
-  else print "Checksum failed."
+sendToServer :: WS.Connection -> [B.ByteString] -> IO ()
+sendToServer conn validatedLines =
+  WS.sendTextDatas conn validatedLines
 
 watchAction :: WS.Connection -> FSN.Action
-watchAction conn (Added eventPath _) = tailing eventPath (tailingContinuation conn)
+watchAction conn (Added eventPath _) = tailing eventPath conn
 watchAction conn (Modified _ _) = print "Modified event ignored."
 watchAction conn (Removed _ _) = print "Removed event ignored."
 
@@ -101,11 +103,6 @@ app watchDir conn = do
     liftIO $ T.putStrLn msg
   
   startWatching watchDir (watchAction conn)
-  
-  --let loop = do
-  --      line <- "Get data from stream here"
-  --      unless (LBS.null line) $ WS.sendTextData conn line >> loop
-  --loop
   
   WS.sendClose conn("EOS" :: Text)
 
