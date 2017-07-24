@@ -14,12 +14,16 @@ import System.FilePath
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 (lines)
 import Data.ByteString.Lazy.Internal (defaultChunkSize)
+import Data.ByteString.Lazy (toStrict)
 import Data.Digest.CRC32 as CRC
 import Data.Text (Text)
 import qualified Data.Text.IO as T
 
+import Network.Connection as C
 import Network.Socket (withSocketsDo)
 import Network.WebSockets as WS
+import Network.WebSockets.Stream as WS.Stream
+import Wuss as WSS
 
 import Lib
 
@@ -78,6 +82,33 @@ app watchDir conn = do
   
   WS.sendClose conn("EOS" :: Text)
 
+startSecureWebsocket tailFilePath = do
+  let host = "192.168.2.7"
+  let port = 8443
+  let path = "/produce"
+  let options = WS.defaultConnectionOptions
+  let headers = []
+  let tlsSettings = C.TLSSettingsSimple {
+        settingDisableCertificateValidation = True,
+        settingDisableSession = False,
+        settingUseServerName = False
+        }
+  let connectionParams = C.ConnectionParams {
+        connectionHostname = host,
+        connectionPort = port,
+        connectionUseSecure = Just tlsSettings,
+        connectionUseSocks = Nothing
+        }
+
+  context <- C.initConnectionContext
+  connection <- C.connectTo context connectionParams
+  stream <- WS.Stream.makeStream
+    (fmap Just (C.connectionGetChunk connection))
+    (maybe (return ()) (C.connectionPut connection . toStrict))
+  WS.runClientWithStream stream host path options headers $ \connection -> do
+    tailing tailFilePath connection
+    return ()
+  
 main :: IO ()
 main =  
   --E.getArgs >>= \args ->
@@ -85,4 +116,4 @@ main =
   --                                                       case dirExists of
   --                                                         True -> withSocketsDo $ WS.runClient "127.0.0.1" 8765 "/" (app $ head args)
   --                                                         False -> putStrLn "Directory does not exist."
-  E.getArgs >>= \args -> withSocketsDo $ WS.runClient "127.0.0.1" 8765 "/" (app $ head args)
+  E.getArgs >>= \args -> startSecureWebsocket $ (head args)
