@@ -5,7 +5,7 @@ setup-info:
       8.0.1:
         url: "/home/androidbuilder/ghc-build/build-android9-arm-linux-androideabi-4.9/ghc/ghc-8.0.1-arm-unknown-linux-android.tar.xz"
 ghc-variant: android-cross
-compiler: ghc-8.0.1-arm-unknown-linux-android
+compiler: ghc-8.0.1
 flags: {}
 extra-package-dbs: []
 packages:
