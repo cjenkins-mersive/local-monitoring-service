@@ -40,7 +40,7 @@ executable hello-exe
                      , split
                      , wuss
   default-language:    Haskell2010
-  extra-lib-dirs:    "/home/cjenkins/android-ndk-r12b/platforms/android-9/arch-arm/usr/lib"
+  extra-lib-dirs:    "/home/androidbuilder/android-ndk-r12b/platforms/android-9/arch-arm/usr/lib"
   extra-libraries:   c, android
 
 test-suite hello-test
@@ -62,7 +62,7 @@ test-suite hello-test
                      , wuss
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
-  extra-lib-dirs:    "/home/cjenkins/android-ndk-r12b/platforms/android-9/arch-arm/usr/lib"
+  extra-lib-dirs:    "/home/androidbuilder/android-ndk-r12b/platforms/android-9/arch-arm/usr/lib"
   extra-libraries:   c, android
 
 source-repository head
